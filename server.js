@@ -40,6 +40,13 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server API berjalan di http://localhost:${PORT}`);
-});
+
+// Jalankan app.listen HANYA saat di komputer lokal
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server API berjalan di http://localhost:${PORT}`);
+    });
+}
+
+// Wajib ditambahkan agar Vercel bisa membaca backend Anda sebagai Serverless Function
+module.exports = app;
