@@ -8,17 +8,27 @@ const app = express();
 // Konfigurasi CORS yang aman
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5000', 'http://127.0.0.1:5000'];
+    : [
+        'https://madunaofficial.vercel.app', // Domain frontend Vercel Anda sudah ditambahkan
+        'http://localhost:5500', 
+        'http://127.0.0.1:5500', 
+        'http://localhost:3000', 
+        'http://127.0.0.1:3000', 
+        'http://localhost:5000', 
+        'http://127.0.0.1:5000'
+      ];
 
 app.use(cors({
     origin: function(origin, callback) {
-        // Izinkan request tanpa origin (seperti mobile apps, curl, server-to-server) atau saat development
-        if (!origin || process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) {
+        // Izinkan request tanpa origin atau jika domainnya terdaftar di allowedOrigins
+        if (!origin || allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
         return callback(new Error('Akses diblokir oleh kebijakan CORS'));
     },
-    credentials: true
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Mengizinkan semua metode termasuk DELETE
+    credentials: true,
+    optionsSuccessStatus: 200 // Membantu browser versi lama
 }));
 
 app.use(express.json());
