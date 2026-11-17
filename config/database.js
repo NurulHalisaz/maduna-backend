@@ -1,18 +1,25 @@
-const mysql = require('mysql2');
+require('dotenv').config(); // Untuk membaca file .env saat tes di laptop
+const { Pool } = require('pg');
 
-const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',      
-    password: '',      
-    database: 'db_maduna'
-});
-
-db.connect((err) => {
-    if (err) {
-        console.error('Gagal terhubung ke database:', err);
-    } else {
-        console.log('Berhasil terhubung ke database db_maduna!');
+// Menggunakan Pool lebih disarankan untuk Vercel (Serverless) agar koneksi stabil
+const db = new Pool({
+    // Vercel akan otomatis mengisi ini dengan link dari pengaturan Environment Variables
+    connectionString: process.env.DATABASE_URL,
+    
+    // Wajib diaktifkan untuk Supabase jika terkoneksi dari server luar (seperti Vercel)
+    ssl: {
+        rejectUnauthorized: false
     }
 });
 
-module.exports = db; // Diekspor agar bisa dipakai oleh controller nanti
+// Tes koneksi saat server menyala
+db.connect((err, client, release) => {
+    if (err) {
+        console.error('Gagal terhubung ke Supabase (PostgreSQL):', err.stack);
+    } else {
+        console.log('Berhasil terhubung ke database Supabase!');
+        release(); // Lepaskan kembali koneksi ke dalam pool setelah sukses dites
+    }
+});
+
+module.exports = db;
