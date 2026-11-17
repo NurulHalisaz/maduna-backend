@@ -1,35 +1,95 @@
+/**
+ * server.js
+ * Backend API untuk Maduna
+ * URL produksi  : https://maduna-backend.vercel.app/
+ * Front‑end URL : https://madunaofficial.vercel.app/
+ *
+ * - Menggunakan Express + CORS
+ * - Koneksi DB di ./config/database
+ * - Semua rute API didefinisikan di ./routes/api
+ * - 404 & error handler mengembalikan JSON standar
+ * - Export aplikasi untuk Vercel (serverless) dan
+ *   start server secara lokal ketika file dijalankan langsung.
+ */
+
 const express = require('express');
-const cors = require('cors');
+const cors    = require('cors');
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// ------------------------------------------------------------------
+// 1️⃣ Middleware
+// ------------------------------------------------------------------
+app.use(
+  cors({
+    // Aktifkan hanya domain frontend yang resmi.
+    // Jika Anda membutuhkan akses lain (mis. tools admin) tambahkan di sini.
+    origin: [
+      'https://madunaofficial.vercel.app',   // front‑end production
+      // 'http://localhost:3000',            // untuk development lokal (opsional)
+    ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true, // bila Anda menggunakan cookie / session
+  })
+);
+app.use(express.json()); // parse JSON body otomatis
 
-// Panggil koneksi database dari folder config agar ikut menyala
+// ------------------------------------------------------------------
+// 2️⃣ Koneksi Database
+// ------------------------------------------------------------------
+// Pastikan file ./config/database meng‑export / meng‑inisialisasi
+// koneksi (mis. mongoose.connect). Jika terjadi error, akan ter‑log
+// ke console sehingga Anda bisa melihatnya di Vercel logs.
 require('./config/database');
 
-// Rute API
+// ------------------------------------------------------------------
+// 3️⃣ Rute API
+// ------------------------------------------------------------------
 const apiRoutes = require('./routes/api');
+// Semua endpoint berada di bawah /api, mis: /api/comments, /api/login, dll.
 app.use('/api', apiRoutes);
 
-// Handler 404 untuk rute yang tidak ditemukan (selalu dalam format JSON standar)
+// ------------------------------------------------------------------
+// 4️⃣ Route health‑check (opsional)
+// ------------------------------------------------------------------
+app.get('/', (req, res) => {
+  res.json({ message: 'Maduna Backend API is alive' });
+});
+
+// ------------------------------------------------------------------
+// 5️⃣ 404 Handler – selalu mengembalikan JSON
+// ------------------------------------------------------------------
 app.use((req, res) => {
-    res.status(404).json({
-        message: `Rute ${req.method} ${req.originalUrl} tidak ditemukan pada server.`
-    });
+  res.status(404).json({
+    message: `Rute ${req.method} ${req.originalUrl} tidak ditemukan pada server.`,
+  });
 });
 
-// Global Error Handler Middleware (mencegah crash & kebocoran HTML stack trace)
+// ------------------------------------------------------------------
+// 6️⃣ Global Error Handler – mencegah crash & mengembalikan JSON
+// ------------------------------------------------------------------
 app.use((err, req, res, next) => {
-    console.error("Internal Server Error:", err);
-    res.status(err.status || 500).json({
-        message: err.message || "Terjadi kesalahan internal pada server."
-    });
+  console.error('Internal Server Error:', err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Terjadi kesalahan internal pada server.',
+  });
 });
 
-const PORT = 5000;
-app.listen(PORT, () => {
-    console.log(`Server API berjalan di http://localhost:${PORT}`);
-});
+// ------------------------------------------------------------------
+// 7️⃣ Export & Conditional listen
+// ------------------------------------------------------------------
+// Vercel (dan kebanyakan platform serverless) meng‑import modul ini
+// sebagai handler, jadi kami **tidak** memanggil app.listen di sana.
+// Ketika dijalankan secara lokal (node server.js) kita tetap ingin
+// server aktif, oleh karena itu gunakan conditional.
+const PORT = process.env.PORT || 5000;
+
+if (require.main === module) {
+  // Dijalankan secara langsung → mode development / testing lokal
+  app.listen(PORT, () => {
+    console.log(`🚀 Server API berjalan di http://localhost:${PORT}`);
+  });
+}
+
+// Export untuk Vercel (atau platform serverless lainnya)
+module.exports = app;
