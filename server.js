@@ -22,18 +22,13 @@ const app = express();
 // ------------------------------------------------------------------
 app.use(
   cors({
-    // Aktifkan hanya domain frontend yang resmi.
-    // Jika Anda membutuhkan akses lain (mis. tools admin) tambahkan di sini.
-    origin: [
-      'https://madunaofficial.vercel.app',   // front‑end production
-      // 'http://localhost:3000',            // untuk development lokal (opsional)
-    ],
+    origin: '*', // <--- Izinkan semua domain/frontend untuk mengakses API ini
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    credentials: true, // bila Anda menggunakan cookie / session
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
   })
 );
 app.use(express.json()); // parse JSON body otomatis
-
 // ------------------------------------------------------------------
 // 2️⃣ Koneksi Database
 // ------------------------------------------------------------------
