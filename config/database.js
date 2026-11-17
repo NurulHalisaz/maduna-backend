@@ -1,20 +1,18 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2');
 
-const db = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false // Wajib untuk koneksi eksternal/cloud
-    }
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',      
+    password: '',      
+    database: 'db_maduna'
 });
 
-// Test koneksi saat server berjalan
-db.connect((err, client, release) => {
+db.connect((err) => {
     if (err) {
-        console.error('Gagal terhubung ke database Supabase:', err.message);
+        console.error('Gagal terhubung ke database:', err);
     } else {
-        console.log('Berhasil terhubung ke database Supabase (PostgreSQL)!');
-        release(); // Lepaskan client kembali ke pool
+        console.log('Berhasil terhubung ke database db_maduna!');
     }
 });
 
-module.exports = db;
+module.exports = db; // Diekspor agar bisa dipakai oleh controller nanti
