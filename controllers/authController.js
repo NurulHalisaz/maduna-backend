@@ -22,7 +22,7 @@ exports.login = (req, res) => {
     
     // Memanggil fungsi dari User Model
     User.findByEmail(email, (err, results) => {
-        if (err || results.length === 0) return res.status(404).json({ message: "User tidak ditemukan" });
+        if (err || !results || results.length === 0) return res.status(404).json({ message: "User tidak ditemukan" });
 
         const user = results[0];
         bcrypt.compare(password, user.password, (err, isMatch) => {
@@ -31,16 +31,14 @@ exports.login = (req, res) => {
             // 1. Role disimpan di dalam Token (untuk keamanan di middleware)
             const token = jwt.sign(
                 { id: user.id, role: user.role }, 
-                'kunci_rahasia_maduna', 
+                process.env.JWT_SECRET || 'kunci_rahasia_maduna', 
                 { expiresIn: '2h' }
             );
 
             // 2. Role juga dikirim ke Front-End (untuk kemudahan logika dashboard)
             res.status(200).json({
                 message: "Login berhasil",
-
                 token: token,
-
                 user: {
                     id: user.id,
                     name: user.name,
@@ -52,177 +50,90 @@ exports.login = (req, res) => {
     });
 };
 
-exports.forgotPassword = async (req,res)=>{
-
+exports.forgotPassword = async (req, res) => {
     const { email } = req.body;
 
-    User.findByEmail(
-        email,
-        (err,results)=>{
+    User.findByEmail(email, (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: "Server Error" });
+        }
 
-            if(err){
+        if (!results || results.length === 0) {
+            return res.status(404).json({ message: "Email tidak ditemukan" });
+        }
 
-                return res.status(500).json({
-                    message:"Server Error"
-                });
+        const token = crypto.randomBytes(32).toString("hex");
+        
+        // PERBAIKAN PENTING: Ganti localhost dengan domain Vercel frontend Anda
+        const resetLink = `https://madunaofficial.vercel.app/reset_password.html?token=${token}`;
 
+        const expired = new Date(Date.now() + 3600000); // 1 jam
+
+        User.saveResetToken(email, token, expired, (err) => {
+            if (err) {
+                return res.status(500).json({ message: "Gagal menyimpan token" });
             }
 
-            if(results.length===0){
-
-                return res.status(404).json({
-                    message:"Email tidak ditemukan"
-                });
-
-            }
-
-            const token = crypto.randomBytes(32).toString("hex");
-            const resetLink =
-            `http://127.0.0.1:5500/frontend/reset_password.html?token=${token}`;
-
-            const expired =
-            new Date(
-                Date.now()+3600000
-            );
-
-            User.saveResetToken(
-                email,
-                token,
-                expired,
+            transporter.sendMail(
+                {
+                    from: "Maduna",
+                    to: email,
+                    subject: "Reset Password Maduna",
+                    html: `
+                    <h2>Reset Password Maduna</h2>
+                    <p>Klik tombol di bawah ini untuk mengubah password Anda.</p>
+                    <a href="${resetLink}"
+                    style="
+                    background:#1F5533;
+                    color:white;
+                    padding:12px 20px;
+                    text-decoration:none;
+                    border-radius:6px;
+                    display:inline-block;
+                    font-weight:bold;
+                    ">
+                    Reset Password
+                    </a>
+                    <p>Link ini berlaku selama 1 jam.</p>
+                    `
+                },
                 (err) => {
-
                     if (err) {
-                        return res.status(500).json({
-                            message: "Gagal menyimpan token"
-                        });
+                        console.log(err);
+                        return res.status(500).json({ message: "Gagal mengirim email" });
                     }
-
-                    transporter.sendMail(
-                        {
-                            from: "Maduna",
-                            to: email,
-                            subject: "Reset Password Maduna",
-                            html: `
-                            <h2>Reset Password Maduna</h2>
-
-                            <p>Klik tombol di bawah ini untuk mengubah password Anda.</p>
-
-                            <a href="${resetLink}"
-                            style="
-                            background:#1F5533;
-                            color:white;
-                            padding:12px 20px;
-                            text-decoration:none;
-                            border-radius:6px;
-                            display:inline-block;
-                            font-weight:bold;
-                            ">
-                            Reset Password
-                            </a>
-
-                            <p>Link ini berlaku selama 1 jam.</p>
-                            `
-                        },
-                        (err) => {
-
-                            if (err) {
-                                console.log(err);
-
-                                return res.status(500).json({
-                                    message: "Gagal mengirim email"
-                                });
-                            }
-
-                            res.json({
-                                message: "Email reset berhasil dikirim"
-                            });
-
-                        }
-                    );
-
+                    res.json({ message: "Email reset berhasil dikirim" });
                 }
             );
-        }
-
-    );
-
+        });
+    });
 };
-exports.resetPassword = (req,res)=>{
 
-    const { token,password } = req.body;
+exports.resetPassword = (req, res) => {
+    const { token, password } = req.body;
 
-    User.findByResetToken(
-
-        token,
-
-        (err,results)=>{
-
-            if(err){
-
-                return res.status(500).json({
-                    message:"Server Error"
-                });
-
-            }
-
-            if(results.length===0){
-
-                return res.status(400).json({
-                    message:"Token tidak valid atau sudah kadaluarsa"
-                });
-
-            }
-
-            const user = results[0];
-
-            bcrypt.hash(
-
-                password,
-
-                10,
-
-                (err,hashedPassword)=>{
-
-                    if(err){
-
-                        return res.status(500).json({
-                            message:"Gagal mengenkripsi password"
-                        });
-
-                    }
-
-                    User.updatePassword(
-
-                        user.id,
-
-                        hashedPassword,
-
-                        (err)=>{
-
-                            if(err){
-
-                                return res.status(500).json({
-                                    message:"Gagal mengubah password"
-                                });
-
-                            }
-
-                            res.json({
-
-                                message:"Password berhasil diubah"
-
-                            });
-
-                        }
-
-                    );
-
-                }
-
-            );
-
+    User.findByResetToken(token, (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: "Server Error" });
         }
 
-    );
+        if (!results || results.length === 0) {
+            return res.status(400).json({ message: "Token tidak valid atau sudah kadaluarsa" });
+        }
 
+        const user = results[0];
+
+        bcrypt.hash(password, 10, (err, hashedPassword) => {
+            if (err) {
+                return res.status(500).json({ message: "Gagal mengenkripsi password" });
+            }
+
+            User.updatePassword(user.id, hashedPassword, (err) => {
+                if (err) {
+                    return res.status(500).json({ message: "Gagal mengubah password" });
+                }
+                res.json({ message: "Password berhasil diubah" });
+            });
+        });
+    });
 };
